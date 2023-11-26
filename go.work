@@ -2,4 +2,5 @@ go 1.20
 
 use (
 	./self-cache/day1-lru
+	./self-cache/day2-concurrent
 )
