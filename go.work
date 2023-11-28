@@ -3,5 +3,7 @@ go 1.20
 use (
 	./self-cache/day1-lru
 	./self-cache/day2-concurrent
+	./self-cache/day3-httpServer
 	./self-cache/day3-httpServer/geecache
+	./self-cache/day4-hash/geecache
 )
