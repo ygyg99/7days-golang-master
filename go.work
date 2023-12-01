@@ -6,4 +6,8 @@ use (
 	./self-cache/day3-httpServer
 	./self-cache/day3-httpServer/geecache
 	./self-cache/day4-hash/geecache
+	./self-cache/day5-multinodes
+	./self-cache/day5-multinodes/geecache
+	./self-cache/day6-SingleFlight
+	./self-cache/day6-SingleFlight/geecache
 )
