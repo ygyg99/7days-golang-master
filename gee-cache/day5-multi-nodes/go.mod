@@ -1,4 +1,4 @@
-module example
+module examplepp
 
 go 1.13
 

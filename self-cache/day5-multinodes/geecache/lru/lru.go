@@ -43,6 +43,7 @@ func (c *Cache) Get(key string) (value Value, ok bool) {
 	// 即使我们知道Value的any类型是*entry，但是不能直接调用*entry.value，
 	//需要对any进行类型断言之后才能调用,且结构体传递指针比传其本身更有效率
 	if ele, ook := c.cahce[key]; ook {
+		c.ll.MoveToFront(ele)
 		value = ele.Value.(*entry).value
 		ok = ook
 	}
@@ -117,10 +118,10 @@ func (c *Cache) Add(key string, value Value) {
 		for c.nBytes > c.maxBytes && c.maxBytes != 0 {
 			c.RemoveOldest()
 		}
-		if c.OnEvicted != nil{
+		if c.OnEvicted != nil {
 			c.OnEvicted(key, value)
 		}
-		
+
 	}
 }
 

@@ -54,7 +54,7 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 记录当前方法和路由
 	p.Log("Method:%s, URL:%s", r.Method, r.URL.Path[len(p.basePath):])
 	// 删去前缀
-	url := r.URL.Path[len(p.basePath)+1:]
+	url := r.URL.Path[len(p.basePath):]
 	// 路径的格式应该为 /<basepath>/<groupname>/<key>
 	// 将路由路径由/分割成不同的部分,当未得到两个时返回BadRequest
 	parts := strings.SplitN(url, "/", 2)

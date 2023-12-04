@@ -15,6 +15,7 @@ const (
 	defaultBasePath = "/_geecache"
 	defaultReplicas = 50
 )
+
 // 每个HTTPPool都有自身独特的地址，其内部还存有该存到哪个节点的hash结构，以及对应于各个节点对应的映射表
 type HTTPPool struct {
 	// 包含有自身的独特路径self:主机名/IP和端口
@@ -54,7 +55,7 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 记录当前方法和路由
 	p.Log("Method:%s, URL:%s", r.Method, r.URL.Path[len(p.basePath):])
 	// 删去前缀
-	url := r.URL.Path[len(p.basePath)+1:]
+	url := r.URL.Path[len(p.basePath):]
 	// 路径的格式应该为 /<basepath>/<groupname>/<key>
 	// 将路由路径由/分割成不同的部分,当未得到两个时返回BadRequest
 	parts := strings.SplitN(url, "/", 2)
@@ -65,12 +66,14 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// 读取groupname和key
 	groupname, key := parts[0], parts[1]
+	p.Log("groupname:%s, key:%s", groupname, key)
 	// 根据name获取group,当未获得时返回StatusNotFound
 	group := GetGroup(groupname)
 	if group == nil {
 		http.Error(w, "no such group:"+groupname, http.StatusNotFound)
 		return
 	}
+	p.Log("choose group: %s", group.name)
 	// 从group中获取key的view，并进行失败判断返回StatusInternalServerErr
 	view, err := group.Get(key)
 	if err != nil {
@@ -84,39 +87,41 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // 实现PeerPicker接口，用于将HTTPPool中的节点添加并完善映射map
-func (p *HTTPPool) Set(peers ...string){
+func (p *HTTPPool) Set(peers ...string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// 定义一个新的一致性Hash的peers，可以根据key来选择节点
-	p.peers = consistenthash.New(defaultReplicas,nil)
+	p.peers = consistenthash.New(defaultReplicas, nil)
 	// 在peers中添加节点
 	p.peers.Add(peers...)
 	// 构建一个map，映射远程节点和对应的httpGetter(获取远程数据的接口)
 	p.httpGetters = make(map[string]*httpGetter, len(peers))
 	// 遍历peers，将其中每个节点对应到httpGetter完善到映射表中
-	for _, peer := range peers{
-		p.httpGetters[peer] = &httpGetter{baseURL: peer+p.basePath}
+	for _, peer := range peers {
+		p.httpGetters[peer] = &httpGetter{baseURL: peer + p.basePath}
 	}
 }
 
 // 通过key在Pool中看会搜索哪一个真实节点，再对地址进行判断是否需要返回一个远程获取的接口
-func(p *HTTPPool)PickPeer(key string)(PeerGetter,bool){
+func (p *HTTPPool) PickPeer(key string) (PeerGetter, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// 从peer(一致性hash)中寻找key对应的节点地址
-	if peer:=p.peers.Get(key);peer!=""&&peer!=p.self{
+	if peer := p.peers.Get(key); peer != "" && peer != p.self {
 		p.Log("Pick peer %s", peer)
-		return p.httpGetters[peer],true
+		return p.httpGetters[peer], true
 	}
 	// 如果是当前HTTPPool的地址则返回空
-	return nil,false
+	return nil, false
 }
+
 var _ PeerPicker = (*HTTPPool)(nil)
 
 // 定义一个结构体用于实现PeerGetter接口(属于客户端类，发送请求)
 type httpGetter struct {
 	baseURL string
 }
+
 // 分布实现，前面是实现了一个接口，后面是实现了具体的功能，从远程端口获取内容
 func (h *httpGetter) Get(group string, key string) ([]byte, error) {
 	// 利用Sprintf拼接字符串 baseURL+group+"/"+key

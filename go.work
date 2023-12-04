@@ -1,6 +1,8 @@
 go 1.20
 
 use (
+	./gee-cache/day5-multi-nodes
+	./gee-cache/day5-multi-nodes/geecache
 	./self-cache/day1-lru
 	./self-cache/day2-concurrent
 	./self-cache/day3-httpServer

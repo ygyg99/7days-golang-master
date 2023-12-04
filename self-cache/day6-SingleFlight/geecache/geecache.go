@@ -3,6 +3,7 @@ package geecache
 import (
 	"fmt"
 	"log"
+	"singleflight/singleflight"
 	"sync"
 )
 
@@ -28,6 +29,9 @@ type Group struct {
 
 	// 再加个属性
 	peers PeerPicker
+
+	// 定义singleflight的group
+	loader *singleflight.Group
 }
 
 var (
@@ -49,6 +53,7 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 		name:      name,
 		getter:    getter,
 		mainCache: cache{cacheBytes: cacheBytes},
+		loader: &singleflight.Group{},
 	}
 	groups[name] = g
 	return g
@@ -100,18 +105,24 @@ func (g *Group) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
 func (g *Group) load(key string) (value ByteView, err error) {
 	// 使用PickPeer方法选择节点,若不是本机节点,则用getFromer从远程获取
 	// 判断HTTPPool是否注入成功
-	if g.peers != nil {
-		// 首先通过peers(HTTPPool)获取当前key的PeerGetter(用于连接上该远程节点的端口)
-		if peer, ok := g.peers.PickPeer(key); ok {
-			// 如果PeerGetter获取到了，调用其方法(在上面额外封装了一层)，获取值
-			if value, err = g.getFromPeer(peer, key); err == nil {
-				return value, nil
+	viewi, err := g.loader.Do(key, func() (interface{}, error) {
+		if g.peers != nil {
+			// 首先通过peers(HTTPPool)获取当前key的PeerGetter(用于连接上该远程节点的端口)
+			if peer, ok := g.peers.PickPeer(key); ok {
+				// 如果PeerGetter获取到了，调用其方法(在上面额外封装了一层)，获取值
+				if value, err = g.getFromPeer(peer, key); err == nil {
+					return value, nil
+				}
+				log.Println("[GeeCache] Failed to get from peer", err)
 			}
-			log.Println("[GeeCache] Failed to get from peer", err)
 		}
+	
+		return g.getLocally(key)
+	})
+	if err == nil{
+		return viewi.(ByteView), nil
 	}
-
-	return g.getLocally(key)
+	return
 }
 
 func (g *Group) getLocally(key string) (ByteView, error) {
