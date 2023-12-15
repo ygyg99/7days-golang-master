@@ -12,4 +12,8 @@ use (
 	./self-cache/day5-multinodes/geecache
 	./self-cache/day6-SingleFlight
 	./self-cache/day6-SingleFlight/geecache
+	./self-cache/day7-protobuf
+	./self-cache/day7-protobuf/geecache
+	./self-rpc/day1-codec
+	./self-rpc/day2-client
 )
